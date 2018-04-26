@@ -41,31 +41,9 @@
   South Dakota School of Mines and Technology\\
   Rapid City, SD 57701 \\
   \texttt{jonathan.mathews@mines.sdsmt.edu} \\
-  %% examples of more authors
-  %% \And
-  %% Coauthor \\
-  %% Affiliation \\
-  %% Address \\
-  %% \texttt{email} \\
-  %% \AND
-  %% Coauthor \\
-  %% Affiliation \\
-  %% Address \\
-  %% \texttt{email} \\
-  %% \And
-  %% Coauthor \\
-  %% Affiliation \\
-  %% Address \\
-  %% \texttt{email} \\
-  %% \And
-  %% Coauthor \\
-  %% Affiliation \\
-  %% Address \\
-  %% \texttt{email} \\
 }
 
 \begin{document}
-% \nipsfinalcopy is no longer used
 
 \maketitle
 
@@ -81,8 +59,23 @@
 \section{Introduction}
 Supervised machine learning has been used to solve complex classification problems but it requires large amounts of preclassified data for training. Unsupervised machine learning attempts to solve this problem by extracting order from data without a pre-determined solution to compare with. Auto encoders are a specific class of unsupervised network that do this by transforming the data into a latent space with desirable properties and then transforming the latent representation back into a form resembling the original input. The loss function usually involves the accuracy of the reconstruction combined with a parameter representing the conformance of the latent space to the desired form.
 
-A variational auto encoder (VAE)
+This paper will explore the properties of three different auto-encoders and their facility for data compression. One of the common goals of an auto-encoder is to find a lower-dimensional representation of the data that, with the appropriate decoder, can be used to reconstruct the original high-dimensional input with minimal reconstruction loss. This is contrasted with a denoising auto-encoder that may have a higher-dimensional latent space than the input, but whose purpose is to reconstruct the original data given a noisy version of the original input. First, this paper will provide a discussion of a linear auto-encoder and its cognates in the machine learning world. Next, the structure will be extended to use a variety of different non-linear activation functions with the goal of improving reconstruction performance in the presence of a non-linear manifold. Finally, the variational auto-encoder will be explored and it's capability to extract the data manifold will be contrasted with the other auto-encoder methods.
 
+\section{The significance of manifold learning}
+The crux of solving problems in engineering and science is often data visualization. The real world is full of noise and phenomena that distort and obscure the desired trends. Finding an appropriate transformation that moves the data from the realm of seeming chaos to the realm of interpretable results is therefore key. In the thermal sciences, this is often done by non-dimensionalizing the data to extend applicability to untested cases. In control theory, the LaPlace and Fourier transforms can be used to show the frequency-dependence of the system. Even something so simple as using a logarithmic plot instead of a linear plot is an example of data transformation for visualization.
+
+The fundamental concept behind manifold learning is that the physical processes that give rise to the data are relatively few in number and typically exist in a continuous space. A simple example would be using a camera to record the trajectory of a soccer-ball after it was kicked. The problem could be somewhat accurately simulated using a small number of parameters such as the impulse imparted to the ball by the kick, the point of contact between foot and ball, the presence of wind or friction of the grass, the shape of the ball, and the mass of the ball. This is only six parameters that could vary continuously in the space of all experiments. If the measurement system is a 720x1080 pixel rgb camera at 30fps, and each experiment takes 5 seconds, then the raw measurement data contains 349,920,000 individual pixel values between 0 and 255. Obviously, there is a huge amount of unnecessary data collected by the system. Manifold learning says that if we represent each experiment as a single point in 349,920,000-dimensional space, all of the experiments should lie close to some 6-dimensional manifold or surface where traversing the manifold is equivalent to traversing the original six simulation parameters. It concerns itself with finding an appropriate transform that can map the results of a new experiment to a low-dimensional space where each dimension has a direct physical corollary. 
+
+This concept coincides with the function of an auto-encoder. The encoding portion of an auto-encoder takes a high-dimensional input and reduces it to a low dimensional latent-space. This would correspond to taking the video of the soccer ball and extracting from it the kicking parameters. The decoding portion takes that latent-space and maps it back to the high-dimensional space. In the soccer example, if the latent-space truly represents the physical variables in the system, then then the decoder could also be thought of as a simulator that could reproduce an accurate video of a soccer-ball being kicked based on the desired physical parameters. An auto-encoder can therefore be thought of as a deep network that attempts to learn the relationship between data and the processes that generated the data. It guesses the appropriate encoding and decoding relationships and then tries to extract the latent parameters and simulate the result. It then compares the simulation with the original input and iterates until it finds an acceptable solution. In this way, the complex relationships between process and data can be determined and a useful visualization developed.
+
+This paper will explore auto-encoders using the MNIST dataset which consists of 28x28-pixel images of hand-drawn numeric digits from 0 to 9. The physical process used to create those images was a person moving a pen across paper. We would therefore expect the manifold extracted to have some correspondence to the various strokes of a pen with some additional parameters to account for the variation within each stroke. There are perhaps 10 to 20 distinct strokes that are used to make each character along with a few parameters each to represent degree of curvature or width of each stroke, etc. The hypothesis is therefore that an appropriate latent-space will have a dimensionality of $10^1 < N < 10^2$.
+
+\section{Linear auto-encoder}
+A linear auto-encoder resolves the input onto a low-dimensional plane
+
+\section{Non-linear auto-encoders}
+\section{Variational auto-encoder}
+The variational auto-encoder 
 \subsection{Style}
 
 Papers to be submitted to NIPS 2017 must be prepared according to the
