@@ -1,3 +1,6 @@
+"""Portions of this code were taken from the github repository at:
+https://github.com/fastforwardlabs/vae-tf.git
+which is protected by the GNU GPL2 license included. Those portions are indicated with comments"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -74,6 +77,7 @@ def build_vae(sess, input_size, latent_size):
 
     with tf.name_scope("loss"):
         #bound by clipping to avoid nan
+#obs_, rec_loss, and kl_loss taken from vae_tf github repository
         obs_ = tf.clip_by_value(x_reconstructed, 1e-7, 1-1e-7)
         rec_loss = -tf.reduce_sum(x_in * tf.log(obs_) 
             + (1-x_in) * tf.log(1-obs_),1)
@@ -84,6 +88,7 @@ def build_vae(sess, input_size, latent_size):
         tf.summary.scalar("Reconstruction", tf.reduce_mean(rec_loss))
 
     with tf.name_scope("l2_regularization"):
+#regularizers, and l2_reg taken from vae_tf github repository
         regularizers = [tf.nn.l2_loss(var) for var in sess.graph.get_collection(
             "trainable_variables") if "weights" in var.name]
         l2_reg = lambda_l2_reg * tf.add_n(regularizers)
@@ -105,11 +110,10 @@ def build_vae(sess, input_size, latent_size):
         return (x_in, dropout, z_mean, z_log_sigma, x_reconstructed, 
             z_, x_reconstructed_, cost, global_step, train_op)
 
+#plotSubset function modified only slightly from vae_tf github repository
 def plotSubset(input_size, x_in, n=10, cols=None, 
     outlines=True, save=True, name="subset", outdir="."):
     """Util to plot subset of inputs and reconstructed outputs"""
-    #print(tf.shape(x_in))
-    #print(tf.shape(x_reconstructed))
     n = min(n, x_in.shape[0])
     cols = (cols if cols else n)
     #rows = 2 * int(np.ceil(n / cols)) # doubled b/c input & reconstruction
@@ -144,37 +148,47 @@ def plotSubset(input_size, x_in, n=10, cols=None,
         plt.savefig(os.path.join(outdir, title), bbox_inches="tight")
 
 def main(to_reload=None):
-    latent_size=5
+    latent_size=2
     name = "variational-{}".format(latent_size)
     input_size=784
-    steps=50000
+    steps=5000
 
+    # import the mnist data
     mnist = tf.contrib.learn.datasets.load_dataset("mnist")
     train_data = mnist.train.images
     train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
     eval_data = mnist.test.images
     eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
 
+    # start the tensorflow session
     sess = tf.Session()
 
+    # build the graph and return handles to the various locations in the graph
     (x_in, dropout_, z_mean, z_log_sigma, x_reconstructed, 
         z_, x_reconstructed_,cost, global_step, train_op) = build_vae(sess, 
         input_size, latent_size)
 
+    # create an object to save graphs
     saver = tf.train.Saver()
     
+    # Select ten static points from the test set to use for the reconstruction 
+    # demo. This will allow all the reconstructions to be directly compared
     x_show = eval_data[100:109,:]
     tempName = "_".join((name, "truth"))
     plotSubset(input_size, x_show, n=10, cols=None, outlines=True,
                        save=True, name=tempName, outdir=".")
 
-
+    # create summary writers so progress can be viewed in tensorboard
     train_writer = tf.summary.FileWriter("/tmp/jon_vae/{}-train".format(name))
     test_writer = tf.summary.FileWriter("/tmp/jon_vae/{}-test".format(name))
     summaries = tf.summary.merge_all()
+
+    # initialize all the variables in the network
     sess.run(tf.global_variables_initializer())
+
+    # train the network for "steps" number of minibatches
     for i in range(steps):
-        # every run, get a new batch and train the autoencoder and record
+        # every run, get a new batch, train the autoencoder and record
         x, _ = mnist.train.next_batch(100)
         fetches = [summaries, train_op]
         feed_dict = {x_in: x}
@@ -188,6 +202,8 @@ def main(to_reload=None):
             feed_dict = {x_in: x}
             summary, cost_ = sess.run(fetches, feed_dict=feed_dict)
             test_writer.add_summary(summary,i)
+        # every 1/5 of the way through, save the graph and create an image
+        # showing the reconstruction
         if (i+1)%np.ceil(steps/5) == 0:
             save_path = saver.save(sess, "/tmp/jon_vae/model_{}.ckpt".format(
                 name))
@@ -196,14 +212,13 @@ def main(to_reload=None):
             fetches = [x_reconstructed]
             feed_dict = {x_in: x_show}
             x_reconstructed_ = sess.run(fetches, feed_dict=feed_dict)[0]
-            #np.reshape(x_reconstructed, shape=(100,784))
-            #print(np.shape(x))
-            #print(np.shape(x_reconstructed_))
-
             tempName = "_".join((name, str(i)))
             print(tempName)
             plotSubset(input_size, x_reconstructed_, n=10, cols=None, 
                 outlines=True, save=True, name=tempName, outdir=".")
+
+    # after the session is trained, calculate the latent space for an input,
+    # generate 10 
 
     sess.close()
 

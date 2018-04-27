@@ -14,7 +14,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 def build_vae(sess, input_size, latent_size):
 
-    nonlinearity = tf.nn.sigmoid
+    nonlinearity = tf.nn.elu
     squashing = tf.nn.sigmoid
     learning_rate = 5e-4
     dropout = 1.
@@ -32,7 +32,7 @@ def build_vae(sess, input_size, latent_size):
         il2 = Dense(scope="encoder_decoder", size=500, dropout=dropout, 
             nonlinearity=nonlinearity)
 
-        z = Dense(scope="encoder_decoder", size=latent_size, dropout=dropout)(il2(il1(x_in)))
+        z = Dense(scope="encoder_decoder", size=latent_size, dropout=dropout, nonlinearity=squashing)(il2(il1(x_in)))
 
         # create a dense layer object with 500 nodes for the decoder
         ol1 = Dense("encoder_decoder", size=500, dropout=dropout, 
@@ -130,10 +130,10 @@ def plotSubset(input_size, x_in, n=10, cols=None,
         plt.savefig(os.path.join(outdir, title), bbox_inches="tight")
 
 def main(to_reload=None):
-    latent_size=5
-    name = "sigmoid-{}".format(latent_size)
+    latent_size=2
+    name = "elu-{}".format(latent_size)
     input_size=784
-    steps=50000
+    steps=5000
 
     mnist = tf.contrib.learn.datasets.load_dataset("mnist")
     train_data = mnist.train.images

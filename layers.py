@@ -1,3 +1,6 @@
+"""This Class was taken from the following github repository:
+https://github.com/fastforwardlabs/vae-tf.git
+which uses the GNU GPL2 license. """
 import tensorflow as tf
 
 
