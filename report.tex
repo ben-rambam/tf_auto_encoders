@@ -10,7 +10,12 @@
 % \usepackage{nips_2017}
 
 % to compile a camera-ready version, add the [final] option, e.g.:
-\usepackage[final]{nips_2017}
+\usepackage[final, nonatbib]{nips_2017}
+\usepackage[english]{babel}
+ 
+\usepackage[backend=biber]{biblatex}
+%\bibliographystyle{ieeetr}
+\addbibresource{bibliography.bib}
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
@@ -20,6 +25,7 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
+\usepackage{graphicx}		% figures
 
 \title{An Exploration of Auto Encoders on MNIST}
 
@@ -38,6 +44,7 @@
     information about author (webpage, alternative
     address)---\emph{not} for acknowledging funding agencies.} \\
   Department of Electrical and Computer Engineering\\
+  and Department of Mechanical Engineering\\
   South Dakota School of Mines and Technology\\
   Rapid City, SD 57701 \\
   \texttt{jonathan.mathews@mines.sdsmt.edu} \\
@@ -59,212 +66,96 @@
 \section{Introduction}
 Supervised machine learning has been used to solve complex classification problems but it requires large amounts of preclassified data for training. Unsupervised machine learning attempts to solve this problem by extracting order from data without a pre-determined solution to compare with. Auto encoders are a specific class of unsupervised network that do this by transforming the data into a latent space with desirable properties and then transforming the latent representation back into a form resembling the original input. The loss function usually involves the accuracy of the reconstruction combined with a parameter representing the conformance of the latent space to the desired form.
 
-This paper will explore the properties of three different auto-encoders and their facility for data compression. One of the common goals of an auto-encoder is to find a lower-dimensional representation of the data that, with the appropriate decoder, can be used to reconstruct the original high-dimensional input with minimal reconstruction loss. This is contrasted with a denoising auto-encoder that may have a higher-dimensional latent space than the input, but whose purpose is to reconstruct the original data given a noisy version of the original input. First, this paper will provide a discussion of a linear auto-encoder and its cognates in the machine learning world. Next, the structure will be extended to use a variety of different non-linear activation functions with the goal of improving reconstruction performance in the presence of a non-linear manifold. Finally, the variational auto-encoder will be explored and it's capability to extract the data manifold will be contrasted with the other auto-encoder methods.
+One of the common goals of an auto-encoder is to find a lower-dimensional representation of the data that, with the appropriate decoder, can be used to reconstruct the original high-dimensional input with minimal reconstruction loss. This is contrasted with a denoising auto-encoder that may have a higher-dimensional latent space than the input, but whose purpose is to reconstruct the original data given a noisy version of the original input. Reducing the dimensionality of the latent-space compresses the data and can aid in classification by allowing the classification to train on a lower-dimensional input that still represents a comparable amount of information to the original input.
+
+This paper will explore the properties of three different compressive auto-encoders and their facility for data compression.  First, this paper will provide a discussion of a linear auto-encoder and its cognates in the machine learning world. Next, the structure will be extended to use a variety of different non-linear activation functions with the goal of improving reconstruction performance under the assumption of a non-linear manifold. Finally, the variational auto-encoder will be explored and it's capability to extract the data manifold will be contrasted with the other auto-encoder methods.
 
 \section{The significance of manifold learning}
 The crux of solving problems in engineering and science is often data visualization. The real world is full of noise and phenomena that distort and obscure the desired trends. Finding an appropriate transformation that moves the data from the realm of seeming chaos to the realm of interpretable results is therefore key. In the thermal sciences, this is often done by non-dimensionalizing the data to extend applicability to untested cases. In control theory, the LaPlace and Fourier transforms can be used to show the frequency-dependence of the system. Even something so simple as using a logarithmic plot instead of a linear plot is an example of data transformation for visualization.
 
-The fundamental concept behind manifold learning is that the physical processes that give rise to the data are relatively few in number and typically exist in a continuous space. A simple example would be using a camera to record the trajectory of a soccer-ball after it was kicked. The problem could be somewhat accurately simulated using a small number of parameters such as the impulse imparted to the ball by the kick, the point of contact between foot and ball, the presence of wind or friction of the grass, the shape of the ball, and the mass of the ball. This is only six parameters that could vary continuously in the space of all experiments. If the measurement system is a 720x1080 pixel rgb camera at 30fps, and each experiment takes 5 seconds, then the raw measurement data contains 349,920,000 individual pixel values between 0 and 255. Obviously, there is a huge amount of unnecessary data collected by the system. Manifold learning says that if we represent each experiment as a single point in 349,920,000-dimensional space, all of the experiments should lie close to some 6-dimensional manifold or surface where traversing the manifold is equivalent to traversing the original six simulation parameters. It concerns itself with finding an appropriate transform that can map the results of a new experiment to a low-dimensional space where each dimension has a direct physical corollary. 
+The fundamental concept behind manifold learning is that the physical processes that give rise to the data are relatively few in number and typically exist in a continuous space. A simple example would be using a camera to record the trajectory of a soccer-ball after it was kicked. The problem could be somewhat accurately simulated using a small number of parameters such as the impulse imparted to the ball by the kick, the point of contact between foot and ball, the presence of wind or friction of the grass, the shape of the ball, and the mass of the ball. This is only six parameters that could vary continuously in the space of all experiments. 
 
-This concept coincides with the function of an auto-encoder. The encoding portion of an auto-encoder takes a high-dimensional input and reduces it to a low dimensional latent-space. This would correspond to taking the video of the soccer ball and extracting from it the kicking parameters. The decoding portion takes that latent-space and maps it back to the high-dimensional space. In the soccer example, if the latent-space truly represents the physical variables in the system, then then the decoder could also be thought of as a simulator that could reproduce an accurate video of a soccer-ball being kicked based on the desired physical parameters. An auto-encoder can therefore be thought of as a deep network that attempts to learn the relationship between data and the processes that generated the data. It guesses the appropriate encoding and decoding relationships and then tries to extract the latent parameters and simulate the result. It then compares the simulation with the original input and iterates until it finds an acceptable solution. In this way, the complex relationships between process and data can be determined and a useful visualization developed.
+If the measurement system is a 720\,x1080 pixel rgb camera at 30-fps, and each experiment takes 5 seconds, then the raw measurement data contains 349,920,000 individual pixel values between 0 and 255. Obviously, there is a huge amount of unnecessary data collected by the system. Manifold learning says that if we represent each experiment as a single point in 349,920,000-dimensional space, all of the experiments should lie close to some 6-dimensional manifold or surface where traversing the manifold is equivalent to traversing the original six simulation parameters. It concerns itself with finding an appropriate transform that can map the results of a new experiment to a low-dimensional space where each dimension has a direct physical corollary. 
 
-This paper will explore auto-encoders using the MNIST dataset which consists of 28x28-pixel images of hand-drawn numeric digits from 0 to 9. The physical process used to create those images was a person moving a pen across paper. We would therefore expect the manifold extracted to have some correspondence to the various strokes of a pen with some additional parameters to account for the variation within each stroke. There are perhaps 10 to 20 distinct strokes that are used to make each character along with a few parameters each to represent degree of curvature or width of each stroke, etc. The hypothesis is therefore that an appropriate latent-space will have a dimensionality of $10^1 < N < 10^2$.
+This concept coincides with the function of an auto-encoder. The encoding portion of an auto-encoder takes a high-dimensional input and reduces it to a low dimensional latent-space. This would correspond to taking the video of the soccer ball and extracting from it the kicking parameters. The decoding portion takes that latent-space and maps it back to the high-dimensional space. In the soccer example, if the latent-space truly represents the physical variables in the system, then the decoder could also be thought of as a simulator that could reproduce an accurate video of a soccer-ball being kicked based on the desired physical parameters. 
+
+An auto-encoder can therefore be thought of as a deep network that attempts to learn the relationship between data and the processes that generated the data. It guesses the appropriate encoding and decoding relationships and then tries to extract the latent parameters and simulate the result. It then compares the simulation with the original input and iterates until it finds a solution that minimizes the difference between the measured input and the simulated result. In this way, the complex relationships between process and data can be determined and a useful visualization developed.
+
+This paper will explore auto-encoders using the MNIST dataset which consists of 28x28-pixel images of hand-drawn numeric digits from 0 to 9. The physical process used to create those images was a person moving a pen across paper. We would therefore expect the manifold extracted to have some correspondence to the various strokes of a pen with some additional parameters to account for the variation within each stroke. There are perhaps 10 to 20 distinct strokes that are used to make each character along with a few parameters each to represent degree of curvature, width of each stroke, etc. The hypothesis is therefore that an appropriate latent-space will have a dimensionality of $10^1 < N < 10^2$ while the input has 784 dimensions.
 
 \section{Linear auto-encoder}
-A linear auto-encoder resolves the input onto a low-dimensional plane
+A linear auto-encoder resolves the input onto a low-dimensional plane. A cognate in the machine learning world is Principal Component Analysis (PCA). In PCA, the data is resolved onto an n-dimensional subspace with the goal of maximizing the variance of the data within that subspace \cite{hoover}. This is accomplished by calculating the eigenvectors of the data and choosing the n eigenvectors that have the highest eigenvalues as the basis for the latent space. This process can be approximated by an auto-encoder by using strictly linear activations where the loss function is defined by: ... . The resulting latent space should span a similar subspace to the first n eigenvectors, but it will not guarantee that the basis vectors are ranked by significance, or that they are orthonormal as PCA does. 
 
-\section{Non-linear auto-encoders}
-\section{Variational auto-encoder}
-The variational auto-encoder 
-\subsection{Style}
-
-Papers to be submitted to NIPS 2017 must be prepared according to the
-instructions presented here. Papers may only be up to eight pages
-long, including figures. This does not include acknowledgments and 
-cited references which are allowed on subsequent pages.
-Papers that exceed these limits will not be reviewed, or in any
-other way considered for presentation at the conference.
-
-The margins in 2017 are the same as since 2007, which allow for
-$\sim 15\%$ more words in the paper compared to earlier years.
-
-Authors are required to use the NIPS \LaTeX{} style files obtainable
-at the NIPS website as indicated below. Please make sure you use the
-current files and not previous versions. Tweaking the style files may
-be grounds for rejection.
-
-\subsection{Retrieval of style files}
-
-The style files for NIPS and other conference information are
-available on the World Wide Web at
-\begin{center}
-  \url{http://www.nips.cc/}
-\end{center}
-The file \verb+nips_2017.pdf+ contains these instructions and
-illustrates the various formatting requirements your NIPS paper must
-satisfy.
-
-The only supported style file for NIPS 2017 is \verb+nips_2017.sty+,
-rewritten for \LaTeXe{}.  \textbf{Previous style files for \LaTeX{}
-  2.09, Microsoft Word, and RTF are no longer supported!}
-
-The new \LaTeX{} style file contains two optional arguments:
-\verb+final+, which creates a camera-ready copy, and \verb+nonatbib+,
-which will not load the \verb+natbib+ package for you in case of
-package clash.
-
-At submission time, please omit the \verb+final+ option. This will
-anonymize your submission and add line numbers to aid review.  Please
-do \emph{not} refer to these line numbers in your paper as they will
-be removed during generation of camera-ready copies.
-
-The file \verb+nips_2017.tex+ may be used as a ``shell'' for writing
-your paper. All you have to do is replace the author, title, abstract,
-and text of the paper with your own.
-
-The formatting instructions contained in these style files are
-summarized in Sections \ref{gen_inst}, \ref{headings}, and
-\ref{others} below.
-
-\section{General formatting instructions}
-\label{gen_inst}
-
-The text must be confined within a rectangle 5.5~inches (33~picas)
-wide and 9~inches (54~picas) long. The left margin is 1.5~inch
-(9~picas).  Use 10~point type with a vertical spacing (leading) of
-11~points.  Times New Roman is the preferred typeface throughout, and
-will be selected for you by default.  Paragraphs are separated by
-\nicefrac{1}{2}~line space (5.5 points), with no indentation.
-
-The paper title should be 17~point, initial caps/lower case, bold,
-centered between two horizontal rules. The top rule should be 4~points
-thick and the bottom rule should be 1~point thick. Allow
-\nicefrac{1}{4}~inch space above and below the title to rules. All
-pages should start at 1~inch (6~picas) from the top of the page.
-
-For the final version, authors' names are set in boldface, and each
-name is centered above the corresponding address. The lead author's
-name is to be listed first (left-most), and the co-authors' names (if
-different address) are set to follow. If there is only one co-author,
-list both author and co-author side by side.
-
-Please pay special attention to the instructions in Section \ref{others}
-regarding figures, tables, acknowledgments, and references.
-
-\section{Headings: first level}
-\label{headings}
-
-All headings should be lower case (except for first word and proper
-nouns), flush left, and bold.
-
-First-level headings should be in 12-point type.
-
-\subsection{Headings: second level}
-
-Second-level headings should be in 10-point type.
-
-\subsubsection{Headings: third level}
-
-Third-level headings should be in 10-point type.
-
-\paragraph{Paragraphs}
-
-There is also a \verb+\paragraph+ command available, which sets the
-heading in bold, flush left, and inline with the text, with the
-heading followed by 1\,em of space.
-
-\section{Citations, figures, tables, references}
-\label{others}
-
-These instructions apply to everyone.
-
-\subsection{Citations within the text}
-
-The \verb+natbib+ package will be loaded for you by default.
-Citations may be author/year or numeric, as long as you maintain
-internal consistency.  As to the format of the references themselves,
-any style is acceptable as long as it is used consistently.
-
-The documentation for \verb+natbib+ may be found at
-\begin{center}
-  \url{http://mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf}
-\end{center}
-Of note is the command \verb+\citet+, which produces citations
-appropriate for use in inline text.  For example,
-\begin{verbatim}
-   \citet{hasselmo} investigated\dots
-\end{verbatim}
-produces
-\begin{quote}
-  Hasselmo, et al.\ (1995) investigated\dots
-\end{quote}
-
-If you wish to load the \verb+natbib+ package with options, you may
-add the following before loading the \verb+nips_2017+ package:
-\begin{verbatim}
-   \PassOptionsToPackage{options}{natbib}
-\end{verbatim}
-
-If \verb+natbib+ clashes with another package you load, you can add
-the optional argument \verb+nonatbib+ when loading the style file:
-\begin{verbatim}
-   \usepackage[nonatbib]{nips_2017}
-\end{verbatim}
-
-As submission is double blind, refer to your own published work in the
-third person. That is, use ``In the previous work of Jones et
-al.\ [4],'' not ``In our previous work [4].'' If you cite your other
-papers that are not widely available (e.g., a journal paper under
-review), use anonymous author names in the citation, e.g., an author
-of the form ``A.\ Anonymous.''
-
-\subsection{Footnotes}
-
-Footnotes should be used sparingly.  If you do require a footnote,
-indicate footnotes with a number\footnote{Sample of the first
-  footnote.} in the text. Place the footnotes at the bottom of the
-page on which they appear.  Precede the footnote with a horizontal
-rule of 2~inches (12~picas).
-
-Note that footnotes are properly typeset \emph{after} punctuation
-marks.\footnote{As in this example.}
-
-\subsection{Figures}
-
-All artwork must be neat, clean, and legible. Lines should be dark
-enough for purposes of reproduction. The figure number and caption
-always appear after the figure. Place one line space before the figure
-caption and one line space after the figure. The figure caption should
-be lower case (except for first word and proper nouns); figures are
-numbered consecutively.
-
-You may use color figures.  However, it is best for the figure
-captions and the paper body to be legible if the paper is printed in
-either black/white or in color.
 \begin{figure}[h]
-  \centering
-  \fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-  \caption{Sample figure caption.}
+\label{fig:network_diagram}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{network_diagram.pdf} 
+\caption{Auto-encoder structure used for the experiments in this report. The numbers indicate the dimensionality of each layer.}
+\end{center}
 \end{figure}
 
-\subsection{Tables}
+To test the linear network's capability as an auto-encoder on MNIST, a network was defined as shown in Figure \ref{fig:network_diagram} that used two hidden layers with 500 nodes in both the encoder and decoder. The latent dimension was set to 5 based on some preliminary testing. Figure \ref{fig:linear_reconstruction} shows the results of the linear encode-decode process at three points during a 50,000 step training run using 100-image batches. It is clear that the network is learning because a few samples in the final reconstruction can be correctly identified by eye. The reconstruction is quite bad though. The network also requires a long time to converge to an identifiable reconstruction when compared with other methods.
 
-All tables must be centered, neat, clean and legible.  The table
-number and title always appear before the table.  See
-Table~\ref{sample-table}.
 
-Place one line space before the table title, one line space after the
-table title, and one line space after the table. The table title must
-be lower case (except for first word and proper nouns); tables are
-numbered consecutively.
 
-Note that publication-quality tables \emph{do not contain vertical
-  rules.} We strongly suggest the use of the \verb+booktabs+ package,
-which allows for typesetting high-quality, professional tables:
+\begin{figure}[h]
+\label{fig:linear_reconstruction}
 \begin{center}
-  \url{https://www.ctan.org/pkg/booktabs}
+\includegraphics[width=0.5\textwidth]{linear-5.pdf} 
+\caption{Results of linear encoding and decoding after \textbf{a)} 10,000, \textbf{b)} 30,000, \textbf{c)} 50,000 training steps compared with \textbf{d)} the input images}
 \end{center}
-This package was used to typeset Table~\ref{sample-table}.
+\end{figure}
+
+\section{Non-linear auto-encoders}
+Although a linear auto-encoder may work well for a subset of problems where the data lies in a linear subspace of the measurement space, it does not work well on MNIST. This is logical because the process of writing a digit is intuitively non-linear. For this reason, three different non-linear transforms were applied to each of the 500-node hidden layers and their results were compared with those of the linear approach. The activation functions were:
+\begin{itemize}
+\item Sigmoid
+\item Rectified Linear Units (ReLU)
+\item Exponential Linear Units (ELU)
+\end{itemize}
+The loss function was left identical to that used for the linear approach. 
+
+Figure \ref{fig:nonlinear_reconstruction} shows the results after training each of the non-linear models for 50,000 steps with a batch size of 100 samples like the linear model. All of the non-linear activations yielded much better results than the linear model and are virtually indistinguishable from each other.
+
+\begin{figure}[h]
+\label{fig:nonlinear_reconstruction}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{nonlinear-5.pdf} 
+\caption{Results of nonlinear encoding and decoding with a \textbf{a)} sigmoid, \textbf{b)} ReLU, and \textbf{c)} ELU activation function compared with \textbf{d)} the input images}
+\end{center}
+\end{figure}
+
+\section{Variational auto-encoder}
+The variational auto-encoder (VAE) approaches the data representation problem from a probabalistic standpoint. From Kingma et al.:
+\begin{quote}
+We assume that the data are generated by some random process, involving an unobserved continuous random variable \textbf{z}. The process consists of two steps: (1) a value $\textbf{z}^{(i)}$ is generated from some prior distribution $p_\theta(\textbf{z})$; (2) a value $\textbf{x}^{(i)}$ is generated from some conditional distribution $p_\theta(\textbf{x}|\textbf{z})$.\cite{kingma}
+\end{quote}
+In this model, $\theta$ represents a set of parameters that define the probability distribution. To return to the soccer illustration, the variational model assumes that the set of all possible kick parameters falls within some probability distribution, $p_\theta(\textbf{z})$, while a single trajectory measurement for a given set of kick parameters falls within a joint distribution, $p_\theta(\textbf x,\textbf z)$. According to Bayes' rule, $p_\theta(\textbf x,\textbf z)=p_\theta(\textbf z|\textbf x) p_\theta(\textbf x)=p_\theta(\textbf x|\textbf z)p_\theta(\textbf z)$. Thus we have that $p_\theta(\textbf x | \textbf z)$ represents how likely it is to get a certain trajectory video given specific parameters for the kick. The expectation of this distribution is the most likely trajectory for any given kick. We will refer to this as a probabalistic decoder. Also, $p_\theta(\textbf z | \textbf x)$ represents the likelihood that the kick had certain parameters given that the trajectory is as measured. The expectation of this distribution would be the most likely kick parameters given any trajectory video. We refer to this as a probabalistic encoder \cite{kingma}.
+
+According to Kingma \cite{kingma}, the true probabalistic encoder model is often intractable, so instead it will be approximated by a recognition model, $q_\phi(\textbf z | \textbf x)$ that we define to be Gaussian. This means that a deterministic function can be derived that maps any value of $\textbf x$ to the mean and standard deviation of $\textbf z$. In essence, this says that a certain trajectory most likely came from the mean that the mapping produces, but it could have come from any kick with similar parameters. Because it's Gaussian, the farther we get from the mean, the less likely it is that the trajectory was produced by that kick. 
+
+The resulting deep network structure is shown in Figure \ref{fig:vae_network_diagram}. There are two main differences between the simple non-linear auto-encoder and the variational auto encoder. The first is that the latent space is not passed directly through from encoder to decoder. Instead, a sample taken from the spherical gaussian distribution defined by the encoder is passed through to the decoder. The second is that the loss function includes a term to account for the KL-divergence between $p_\theta(\textbf z|\textbf x)$ and $q_\phi(\textbf z|\textbf x)$. This term essentially tries to ensure that the approximated prior distribution is as close as possible to the actual prior distribution. 
+
+\begin{figure}[h]
+\label{fig:vae_network_diagram}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{vae_network_diagram.pdf} 
+\caption{The basic structure of the variational auto-encoder. The networks in the encoder and decoder each contain 2 densely connected layers of 500 nodes each with ELU activation functions.}
+\end{center}
+\end{figure}
+
+Figure \ref{fig:variational_reconstruction} shows the reconstruction produced by the VAE. It provides comparable results to the simple non-linear auto-encoders, but has the added advantage that continuous variation of the latent-space parameters will result in continuous variation of the output within the domain of hand-drawn digits. This implies that the VAE is actually quite close to the manifold representing the $5^{th}$ dimensional surface in 784-dimensional space that corresponds to hand-drawn digits.
+
+\begin{figure}[h]
+\label{fig:variational_reconstruction}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{variational-5.pdf} 
+\caption{The reconstruction produced by \textbf{a)} the VAE, compared with \textbf{b)} the input.}
+\end{center}
+\end{figure}
+
+\section{Convolutional Variational auto-encoder}
+The variational auto-encoder 
 
 \begin{table}[t]
   \caption{Sample table title}
@@ -283,22 +174,7 @@ This package was used to typeset Table~\ref{sample-table}.
   \end{tabular}
 \end{table}
 
-\section{Final instructions}
 
-Do not change any aspects of the formatting parameters in the style
-files.  In particular, do not modify the width or length of the
-rectangle the text should fit into, and do not change font sizes
-(except perhaps in the \textbf{References} section; see below). Please
-note that pages should be numbered.
-
-\section{Preparing PDF files}
-
-Please prepare submission files with paper size ``US Letter,'' and
-not, for example, ``A4.''
-
-Fonts were the main cause of problems in the past years. Your PDF file
-must only contain Type 1 or Embedded TrueType fonts. Here are a few
-instructions to achieve this.
 
 \begin{itemize}
 
@@ -335,26 +211,7 @@ Note that \verb+amsfonts+ is automatically loaded by the
 
 \end{itemize}
 
-If your file contains type 3 fonts or non embedded TrueType fonts, we
-will ask you to fix it.
 
-\subsection{Margins in \LaTeX{}}
-
-Most of the margin problems come from figures positioned by hand using
-\verb+\special+ or other commands. We suggest using the command
-\verb+\includegraphics+ from the \verb+graphicx+ package. Always
-specify the figure width as a multiple of the line width as in the
-example below:
-\begin{verbatim}
-   \usepackage[pdftex]{graphicx} ...
-   \includegraphics[width=0.8\linewidth]{myfile.pdf}
-\end{verbatim}
-See Section 4.4 in the graphics bundle documentation
-(\url{http://mirrors.ctan.org/macros/latex/required/graphics/grfguide.pdf})
-
-A number of width problems arise when \LaTeX{} cannot properly
-hyphenate a line. Please give LaTeX hyphenation hints using the
-\verb+\-+ command when necessary.
 
 \subsubsection*{Acknowledgments}
 
@@ -374,18 +231,7 @@ size to \verb+small+ (9 point) when listing the references. {\bf
 
 \small
 
-[1] Alexander, J.A.\ \& Mozer, M.C.\ (1995) Template-based algorithms
-for connectionist rule extraction. In G.\ Tesauro, D.S.\ Touretzky and
-T.K.\ Leen (eds.), {\it Advances in Neural Information Processing
-  Systems 7}, pp.\ 609--616. Cambridge, MA: MIT Press.
+\printbibliography
 
-[2] Bower, J.M.\ \& Beeman, D.\ (1995) {\it The Book of GENESIS:
-  Exploring Realistic Neural Models with the GEneral NEural SImulation
-  System.}  New York: TELOS/Springer--Verlag.
-
-[3] Hasselmo, M.E., Schnell, E.\ \& Barkai, E.\ (1995) Dynamics of
-learning and recall at excitatory recurrent synapses and cholinergic
-modulation in rat hippocampal region CA3. {\it Journal of
-  Neuroscience} {\bf 15}(7):5249-5262.
 
 \end{document}
